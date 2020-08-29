@@ -21,7 +21,7 @@ import 'package:stocktrak/utils/money.dart';
 
   return Money.fromDouble(double.parse(text.replaceAll(',', '.')));
 } */
-
+@Deprecated("Use StockManager instead")
 Future<Money> scrapeStockValue(String code) async {
   final uri = Uri.parse('https://www.google.com/search?q=IDX%3A+$code&hl=en');
   final response = await http.Client().get(uri);
@@ -33,6 +33,6 @@ Future<Money> scrapeStockValue(String code) async {
 
     return Money.fromDouble(double.parse(text.replaceAll(',', '')));
   } else {
-    throw HttpException(response.reasonPhrase, uri: uri);
+    throw HttpException('${response.statusCode}: ${response.reasonPhrase}', uri: uri);
   }
 }

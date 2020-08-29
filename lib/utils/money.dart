@@ -28,6 +28,17 @@ class Money {
       return Money((this.value / other).round());
   }
 
+  bool operator <(dynamic other) => (other is Money && this.value < other.value) || this.value / 100 < other;
+  bool operator >(dynamic other) => (other is Money && this.value > other.value) || this.value / 100 > other;
+  bool operator <=(dynamic other) => (other is Money && this.value <= other.value) || this.value / 100 <= other;
+  bool operator >=(dynamic other) => (other is Money && this.value >= other.value) || this.value / 100 >= other;
+  bool operator ==(dynamic other) => (other is Money && this.value == other.value) || this.value / 100 == other;
+
+  @override
+  int get hashCode => value;
+
+  double toDouble() => this.value / 100;
+
   static final currencyFormat = NumberFormat("Rp #,##0.00", "en_US");
   String toString() {
     return currencyFormat.format(this.value / 100);
