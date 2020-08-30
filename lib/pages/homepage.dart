@@ -82,7 +82,6 @@ class _HomePageState extends State<HomePage> {
           border: Border(
             top: BorderSide(
               color: Theme.of(context).bottomAppBarColor,
-              width: 2,
             ),
           ),
         ),
@@ -179,7 +178,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 fillColor: theme.floatingActionButtonTheme.backgroundColor,
                 isSelected: _type == _DashboardViewType.Delta ? [true, false] : [false, true],
                 borderRadius: BorderRadius.circular(4),
-                borderColor: Colors.grey,
+                borderColor: theme.buttonColor,
                 selectedBorderColor: theme.accentColor,
                 onPressed: (index) {
                   setState(() {
@@ -197,7 +196,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-class TransactionScreen extends StatelessWidget {
+class TransactionScreen extends StatefulWidget {
+  @override
+  _TransactionScreenState createState() => _TransactionScreenState();
+}
+
+class _TransactionScreenState extends State<TransactionScreen> with SingleTickerProviderStateMixin {
+  bool _isSelecting = false;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -209,7 +215,25 @@ class TransactionScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text("Transactions", style: theme.textTheme.headline3),
-          SizedBox(height: 32.0),
+          SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              AnimatedSize(
+                duration: Duration(milliseconds: 200),
+                vsync: this,
+                child: OutlineButton(
+                  borderSide: BorderSide(color: theme.buttonColor),
+                  child: Text(_isSelecting ? 'CANCEL' : 'SELECT'),
+                  onPressed: () {
+                    setState(() {
+                      _isSelecting = !_isSelecting;
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
           Expanded(child: TransactionList()),
         ],
       ),

@@ -26,12 +26,14 @@ class MyApp extends StatelessWidget {
             accentColor: Colors.blue,
             accentColorBrightness: Brightness.light,
             primaryColor: Colors.green,
-            bottomAppBarColor: Color.fromARGB(255, 32, 32, 32),
+            bottomAppBarColor: const Color.fromARGB(255, 64, 64, 64),
 
-            buttonColor: Colors.white,
+            buttonColor: const Color.fromARGB(255, 64, 64, 64),
             buttonTheme: ButtonThemeData(
-              buttonColor: Colors.white,
+              buttonColor: const Color.fromARGB(255, 64, 64, 64),
             ),
+
+            cardColor: const Color.fromARGB(255, 64, 64, 64),
 
             floatingActionButtonTheme: FloatingActionButtonThemeData(
               backgroundColor: Colors.blue,

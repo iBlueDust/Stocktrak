@@ -109,7 +109,7 @@ class _TransactionFormState extends State<TransactionForm> {
             fillColor: theme.floatingActionButtonTheme.backgroundColor,
             isSelected: _type == TransactionType.Buy ? [true, false] : [false, true],
             borderRadius: BorderRadius.circular(4),
-            borderColor: Colors.grey,
+            borderColor: theme.buttonColor,
             selectedBorderColor: theme.accentColor,
             onPressed: (index) {
               setState(() {
@@ -279,7 +279,6 @@ class _TransactionFormState extends State<TransactionForm> {
         content: Text('Your changes will not be saved!'),
         actions: <Widget>[
           FlatButton(
-            textColor: theme.buttonColor,
             onPressed: () {
               Navigator.pop(context);
               Navigator.pop(context);
