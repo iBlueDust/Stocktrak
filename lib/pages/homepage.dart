@@ -8,6 +8,7 @@ import 'package:enum_to_string/enum_to_string.dart';
 
 import 'package:stocktrak/store/stock_manager.dart' show StockManager, TIMEOUT;
 import 'package:stocktrak/store/transaction_manager.dart';
+import 'package:stocktrak/utils/money.dart';
 import 'package:stocktrak/utils/owned_stock.dart';
 import 'package:stocktrak/utils/transaction.dart';
 
@@ -117,8 +118,12 @@ class DashboardScreen extends StatefulWidget {
   _DashboardScreenState createState() => _DashboardScreenState();
 }
 
+enum _DashboardViewType { Delta, PercentDelta }
+
 class _DashboardScreenState extends State<DashboardScreen> {
   RefreshController _controller;
+
+  _DashboardViewType _type = _DashboardViewType.Delta;
 
   @override
   void initState() {
@@ -163,7 +168,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: <Widget>[
             Text("Dashboard", style: theme.textTheme.headline3),
             SizedBox(height: 32.0),
-            StockList(),
+            Align(
+              alignment: Alignment.topRight,
+              child: ToggleButtons(
+                children: [
+                  Text('Rp'),
+                  Text('%'),
+                ],
+                selectedColor: theme.floatingActionButtonTheme.foregroundColor,
+                fillColor: theme.floatingActionButtonTheme.backgroundColor,
+                isSelected: _type == _DashboardViewType.Delta ? [true, false] : [false, true],
+                borderRadius: BorderRadius.circular(4),
+                borderColor: Colors.grey,
+                selectedBorderColor: theme.accentColor,
+                onPressed: (index) {
+                  setState(() {
+                    _type = index == 0 ? _DashboardViewType.Delta : _DashboardViewType.PercentDelta;
+                  });
+                },
+              ),
+            ),
+            SizedBox(height: 16),
+            StockList(viewType: _type),
           ],
         ),
       ),
@@ -192,14 +218,22 @@ class TransactionScreen extends StatelessWidget {
 }
 
 class StockList extends StatelessWidget {
+  final _DashboardViewType viewType;
+
+  StockList({Key key, this.viewType}) : super(key: key);
   @override
   Widget build(BuildContext context) {
     return Consumer<TransactionManager>(
       builder: (context, manager, _) => ListView(
         shrinkWrap: true,
-        children: manager.ownedStocks.entries
-            .map((entry) => StockListItem(stockCode: entry.key, ownedStock: entry.value))
-            .toList(),
+        children: manager.ownedStocks?.entries
+                ?.map((entry) => StockListItem(
+                      stockCode: entry.key,
+                      ownedStock: entry.value,
+                      viewType: viewType,
+                    ))
+                ?.toList() ??
+            [],
       ),
     );
   }
@@ -208,8 +242,14 @@ class StockList extends StatelessWidget {
 class StockListItem extends StatelessWidget {
   final String stockCode;
   final OwnedStock ownedStock;
+  final _DashboardViewType viewType;
 
-  StockListItem({Key key, @required this.stockCode, @required this.ownedStock}) : super(key: key);
+  StockListItem({
+    Key key,
+    @required this.stockCode,
+    @required this.ownedStock,
+    this.viewType = _DashboardViewType.Delta,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -225,9 +265,9 @@ class StockListItem extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Text(stockCode, style: theme.textTheme.headline6),
-              Consumer<StockManager>(
-                builder: (context, manager, _) {
-                  if (manager.dailyStocks == null)
+              Consumer2<StockManager, TransactionManager>(
+                builder: (context, stockManager, transactionManager, _) {
+                  if (stockManager.dailyStocks == null)
                     return Shimmer.fromColors(
                       baseColor: Colors.grey[700],
                       highlightColor: Colors.grey[500],
@@ -241,26 +281,63 @@ class StockListItem extends StatelessWidget {
                       ),
                     );
                   else {
-                    final stockPrice = manager.stockPrice(stockCode);
+                    final stockPrice = stockManager.stockPrice(stockCode);
 
-                    if (stockPrice != null)
-                      return Text(stockPrice.toString());
-                    else
+                    if (stockPrice != null) {
+                      if (transactionManager.ownedStocks[stockCode] == null)
+                        return Text(
+                          stockPrice.toString(),
+                          style: theme.textTheme.overline,
+                        );
+                      else {
+                        final lots = transactionManager.ownedStocks[stockCode].lots;
+
+                        return Text(
+                          '${lots}L @ ${stockPrice.toString()}',
+                          style: theme.textTheme.overline,
+                        );
+                      }
+                    } else {
                       return Text(
                         'Error',
-                        style: TextStyle(color: theme.errorColor),
+                        style: theme.textTheme.overline.copyWith(color: theme.errorColor),
                       );
+                    }
                   }
                 },
               ),
             ],
           ),
-          Consumer2<StockManager, TransactionManager>(
-            builder: (context, stockManager, transactionManager, _) => Text(
-              (stockManager.stockPrice(stockCode) * ownedStock.lots * Transaction.stocksPerLot - ownedStock.nettCost)
-                  .toString(),
-              style: theme.textTheme.headline6.copyWith(color: theme.primaryColor),
-            ),
+          Consumer<StockManager>(
+            builder: (context, stockManager, _) {
+              final theme = Theme.of(context);
+              final stockPrice = stockManager.stockPrice(stockCode) ?? Money(0);
+              final currentPrice = stockPrice * ownedStock.lots * Transaction.stocksPerLot;
+              Color color;
+              String sign = '';
+
+              if (currentPrice > ownedStock.nettCost) {
+                color = theme.primaryColor;
+                sign = '+';
+              } else if (currentPrice == ownedStock.nettCost)
+                color = Colors.yellowAccent;
+              else
+                color = theme.errorColor;
+
+              switch (viewType) {
+                case _DashboardViewType.PercentDelta:
+                  final percentDelta = (currentPrice / ownedStock.nettCost).toDouble() * 100 - 100;
+                  return Text(
+                    '$sign${percentDelta.toStringAsFixed(2)}%',
+                    style: theme.textTheme.headline6.copyWith(color: color),
+                  );
+                default:
+                  return Text(
+                    sign + (currentPrice - ownedStock.nettCost).toString(),
+                    style: theme.textTheme.headline6.copyWith(color: color),
+                  );
+              }
+            },
           ),
         ],
       ),
