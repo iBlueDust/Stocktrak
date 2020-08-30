@@ -105,6 +105,7 @@ class _TransactionFormState extends State<TransactionForm> {
                 child: Text("SELL"),
               ),
             ],
+            constraints: BoxConstraints(minHeight: 32, minWidth: 48),
             selectedColor: theme.floatingActionButtonTheme.foregroundColor,
             fillColor: theme.floatingActionButtonTheme.backgroundColor,
             isSelected: _type == TransactionType.Buy ? [true, false] : [false, true],

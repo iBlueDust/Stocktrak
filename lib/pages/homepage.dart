@@ -174,6 +174,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Text('Rp'),
                   Text('%'),
                 ],
+                constraints: BoxConstraints(minHeight: 32, minWidth: 48),
                 selectedColor: theme.floatingActionButtonTheme.foregroundColor,
                 fillColor: theme.floatingActionButtonTheme.backgroundColor,
                 isSelected: _type == _DashboardViewType.Delta ? [true, false] : [false, true],
@@ -201,7 +202,7 @@ class TransactionScreen extends StatefulWidget {
   _TransactionScreenState createState() => _TransactionScreenState();
 }
 
-class _TransactionScreenState extends State<TransactionScreen> with SingleTickerProviderStateMixin {
+class _TransactionScreenState extends State<TransactionScreen> {
   bool _isSelecting = false;
 
   @override
@@ -215,26 +216,8 @@ class _TransactionScreenState extends State<TransactionScreen> with SingleTicker
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text("Transactions", style: theme.textTheme.headline3),
-          SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              AnimatedSize(
-                duration: Duration(milliseconds: 200),
-                vsync: this,
-                child: OutlineButton(
-                  borderSide: BorderSide(color: theme.buttonColor),
-                  child: Text(_isSelecting ? 'CANCEL' : 'SELECT'),
-                  onPressed: () {
-                    setState(() {
-                      _isSelecting = !_isSelecting;
-                    });
-                  },
-                ),
-              ),
-            ],
-          ),
-          Expanded(child: TransactionList()),
+          SizedBox(height: 32),
+          Expanded(child: TransactionList(selectMode: _isSelecting)),
         ],
       ),
     );
@@ -293,8 +276,8 @@ class StockListItem extends StatelessWidget {
                 builder: (context, stockManager, transactionManager, _) {
                   if (stockManager.dailyStocks == null)
                     return Shimmer.fromColors(
-                      baseColor: Colors.grey[700],
-                      highlightColor: Colors.grey[500],
+                      baseColor: Colors.grey[800],
+                      highlightColor: Colors.grey[700],
                       child: Container(
                         width: 48,
                         height: 16,
@@ -335,7 +318,22 @@ class StockListItem extends StatelessWidget {
           Consumer<StockManager>(
             builder: (context, stockManager, _) {
               final theme = Theme.of(context);
-              final stockPrice = stockManager.stockPrice(stockCode) ?? Money(0);
+              final stockPrice = stockManager.stockPrice(stockCode);
+
+              if (stockPrice == null)
+                return Shimmer.fromColors(
+                  baseColor: Colors.grey[800],
+                  highlightColor: Colors.grey[700],
+                  child: Container(
+                    width: 96,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(4),
+                      color: Colors.white,
+                    ),
+                  ),
+                );
+
               final currentPrice = stockPrice * ownedStock.lots * Transaction.stocksPerLot;
               Color color;
               String sign = '';
@@ -370,6 +368,10 @@ class StockListItem extends StatelessWidget {
 }
 
 class TransactionList extends StatelessWidget {
+  final bool selectMode;
+
+  TransactionList({Key key, this.selectMode}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return Consumer<TransactionManager>(
@@ -385,7 +387,15 @@ class TransactionList extends StatelessWidget {
           return ListView.builder(
             shrinkWrap: true,
             itemCount: manager.transactionCount,
-            itemBuilder: (context, index) => TransactionListItem(manager.transactionAt(index)),
+            itemBuilder: (context, index) {
+              final transaction = manager.transactionAt(index);
+              return TransactionListItem(
+                transaction,
+                key: Key(transaction.id.toRadixString(16)),
+                onTap: () => _editTransactionAt(index, context),
+                onLongPress: () => _showOptionsDialog(index, manager, context),
+              );
+            },
           );
         else
           return Center(
@@ -394,54 +404,116 @@ class TransactionList extends StatelessWidget {
       },
     );
   }
+
+  Future<void> _showOptionsDialog(int index, TransactionManager manager, BuildContext context) async {
+    await showDialog(
+        context: context,
+        builder: (dialogContext) {
+          return SimpleDialog(
+            title: const Text('Transaction Actions'),
+            children: <Widget>[
+              SimpleDialogOption(
+                onPressed: () {
+                  _editTransactionAt(index, context);
+                  Navigator.pop(dialogContext);
+                },
+                child: const Text('Edit'),
+              ),
+              SimpleDialogOption(
+                onPressed: () {
+                  _deleteTransactionAt(index, manager, context);
+                  Navigator.pop(dialogContext);
+                },
+                child: const Text('Delete'),
+              ),
+            ],
+          );
+        });
+  }
+
+  Future<void> _editTransactionAt(int index, BuildContext context) {
+    return Navigator.pushNamed(context, 'edit-transaction', arguments: index);
+  }
+
+  Future<void> _deleteTransactionAt(int index, TransactionManager manager, BuildContext context) async {
+    final transaction = manager.transactionAt(index);
+
+    await manager.removeTransactionAt(index);
+    final scaffold = Scaffold.of(context);
+
+    scaffold.showSnackBar(SnackBar(
+      content: Text(
+          '${transaction.stock} ${transaction.lots}L @ ${transaction.pricePerStock.toString()} Transaction deleted'),
+      action: SnackBarAction(
+          label: "UNDO",
+          onPressed: () async {
+            await manager.addTransaction(transaction);
+            scaffold.showSnackBar(SnackBar(
+              content: Text('Undid transaction delete'),
+            ));
+          }),
+    ));
+  }
 }
 
 class TransactionListItem extends StatelessWidget {
+  final Key key;
   final Transaction transaction;
+  final Function onLongPress;
+  final Function onTap;
 
-  TransactionListItem(this.transaction, {Key key}) : super(key: key);
+  TransactionListItem(
+    this.transaction, {
+    this.key,
+    this.onLongPress,
+    this.onTap,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(transaction.stock, style: theme.textTheme.headline6),
-              Text(transaction.date.toIso8601String().substring(0, 10), style: theme.textTheme.overline),
-            ],
-          ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                "${transaction.lots}L @ ${transaction.pricePerStock.toString()}",
-                style: theme.textTheme.overline,
-              ),
-              Text(
-                transaction.totalPrice.toString(),
-                style: transaction == null
-                    ? theme.textTheme.headline6
-                    : theme.textTheme.headline6.copyWith(
-                        color: transaction.type == TransactionType.Buy ? theme.primaryColor : theme.errorColor,
-                      ),
-              ),
-              Text(
-                EnumToString.parse(transaction.type).toUpperCase(),
-                style: theme.textTheme.overline,
-              ),
-            ],
-          )
-        ],
+    return InkWell(
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(transaction.stock, style: theme.textTheme.headline6),
+                Text(transaction.date.toIso8601String().substring(0, 10), style: theme.textTheme.overline),
+              ],
+            ),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  "${transaction.lots}L @ ${transaction.pricePerStock.toString()}",
+                  style: theme.textTheme.overline,
+                ),
+                Text(
+                  transaction.totalPrice.toString(),
+                  style: transaction == null
+                      ? theme.textTheme.headline6
+                      : theme.textTheme.headline6.copyWith(
+                          color: transaction.type == TransactionType.Buy ? theme.primaryColor : theme.errorColor,
+                        ),
+                ),
+                Text(
+                  EnumToString.parse(transaction.type).toUpperCase(),
+                  style: theme.textTheme.overline,
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
