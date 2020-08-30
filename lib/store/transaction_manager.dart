@@ -113,6 +113,7 @@ class TransactionManager extends ChangeNotifier {
       transactions.insert(index, transaction);
 
     _accumulateOwnedStock(transaction);
+    notifyListeners();
   }
 
   Transaction transactionAt(int index) => transactions[index];

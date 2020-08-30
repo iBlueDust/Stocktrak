@@ -16,25 +16,30 @@ class Money {
 
   Money operator *(dynamic other) {
     if (other is Money)
-      return Money((this.value * other.value) ~/ 100); // Divide by 100 to remove the extra two decimal places
+      return Money(((this.value * other.value) / 100).round()); // Divide by 100 to remove the extra two decimal places
     else
       return Money(this.value * other);
   }
 
   Money operator /(dynamic other) {
     if (other is Money)
-      return Money((this.value * other.value) * 100); // Multiply by 100 to add the removed two decimal places
+      return Money(((this.value / other.value) * 100).round()); // Multiply by 100 to add the removed two decimal places
     else
       return Money((this.value / other).round());
   }
 
   Money operator -() => Money(-this.value);
 
-  bool operator <(dynamic other) => (other is Money && this.value < other.value) || this.value / 100 < other;
-  bool operator >(dynamic other) => (other is Money && this.value > other.value) || this.value / 100 > other;
-  bool operator <=(dynamic other) => (other is Money && this.value <= other.value) || this.value / 100 <= other;
-  bool operator >=(dynamic other) => (other is Money && this.value >= other.value) || this.value / 100 >= other;
-  bool operator ==(dynamic other) => (other is Money && this.value == other.value) || this.value / 100 == other;
+  bool operator <(dynamic other) =>
+      (other is Money && this.value < other.value) || (!(other is Money) && this.value / 100 < other);
+  bool operator >(dynamic other) =>
+      (other is Money && this.value > other.value) || (!(other is Money) && this.value / 100 > other);
+  bool operator <=(dynamic other) =>
+      (other is Money && this.value <= other.value) || (!(other is Money) && this.value / 100 <= other);
+  bool operator >=(dynamic other) =>
+      (other is Money && this.value >= other.value) || (!(other is Money) && this.value / 100 >= other);
+  bool operator ==(dynamic other) =>
+      (other is Money && this.value == other.value) || (!(other is Money) && this.value / 100 == other);
 
   @override
   int get hashCode => value;

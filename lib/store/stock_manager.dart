@@ -118,6 +118,6 @@ class StockManager extends ChangeNotifier {
   }
 
   Money stockPrice(String code) {
-    return dailyStocks[code] == null ? null : Money.fromDouble(dailyStocks[code].close);
+    return dailyStocks == null || dailyStocks[code] == null ? null : Money.fromDouble(dailyStocks[code].close);
   }
 }

@@ -45,6 +45,8 @@ class TransactionForm extends StatefulWidget {
 class _TransactionFormState extends State<TransactionForm> {
   final _formKey = GlobalKey<FormState>();
 
+  TransactionType _type = TransactionType.Buy;
+
   Money _pricePerStock = Money(0);
   int _lots = 1;
 
@@ -55,6 +57,8 @@ class _TransactionFormState extends State<TransactionForm> {
 
   DateTime _date = DateTime.now();
   TextEditingController _dateFieldController;
+
+  String _notes = '';
 
   @override
   void initState() {
@@ -90,6 +94,30 @@ class _TransactionFormState extends State<TransactionForm> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
+          ToggleButtons(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text("BUY"),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text("SELL"),
+              ),
+            ],
+            selectedColor: theme.floatingActionButtonTheme.foregroundColor,
+            fillColor: theme.floatingActionButtonTheme.backgroundColor,
+            isSelected: _type == TransactionType.Buy ? [true, false] : [false, true],
+            borderRadius: BorderRadius.circular(4),
+            borderColor: Colors.grey,
+            selectedBorderColor: theme.accentColor,
+            onPressed: (index) {
+              setState(() {
+                _type = index == 0 ? TransactionType.Buy : TransactionType.Sell;
+              });
+            },
+          ),
+          SizedBox(height: 32),
           Row(
             children: <Widget>[
               Expanded(
@@ -188,9 +216,19 @@ class _TransactionFormState extends State<TransactionForm> {
             validator: (_) => _date == null ? 'Date is required' : null,
           ),
           SizedBox(height: 48),
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 64),
+          TextFormField(
+            decoration: InputDecoration(
+              filled: true,
+              labelText: 'Notes',
+            ),
+            keyboardType: TextInputType.multiline,
+            maxLines: 10,
+            minLines: 1,
+            onChanged: (text) => _notes = text,
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 64),
+            child: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -287,7 +325,8 @@ class _TransactionFormState extends State<TransactionForm> {
           lots: _lots,
           pricePerStock: _pricePerStock,
           stock: _stock,
-          type: TransactionType.Buy,
+          type: _type,
+          notes: _notes,
         ),
       );
 
