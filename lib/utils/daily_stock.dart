@@ -1,5 +1,3 @@
-import 'dart:collection';
-
 class DailyStock {
 	final int no;
 	final int id;
@@ -69,7 +67,7 @@ class DailyStock {
 		this.percentage,
 	});
 
-	DailyStock.fromJson(LinkedHashMap obj)
+	DailyStock.fromJson(Map<String, dynamic> obj)
 		: this(
 		no: obj['No'],
 		id: obj['IDStockSummary'],

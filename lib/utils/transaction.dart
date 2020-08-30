@@ -26,5 +26,24 @@ class Transaction {
         // I can't find a way to declare DateTime.now() as a separate variable while making this.date final
         this.date = date ?? DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
 
-  get totalPrice => pricePerStock * lots * stocksPerLot;
+  Money get totalPrice => pricePerStock * lots * stocksPerLot;
+
+  Transaction.fromJson(Map json)
+      : this(
+          date: DateTime.tryParse(json['date']),
+          stock: json['stock'],
+          pricePerStock: Money(json['pricePerStock']),
+          lots: json['lots'],
+          notes: json['notes'],
+          type: json['type'] == "Sell" ? TransactionType.Sell : TransactionType.Buy,
+        );
+
+  Map<String, dynamic> toJson() => {
+        'date': date.toIso8601String(),
+        'stock': stock,
+        'pricePerStock': pricePerStock.value,
+        'lots': lots,
+        'notes': notes,
+        'type': type.toString(),
+      };
 }

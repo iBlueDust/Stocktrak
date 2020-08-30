@@ -28,6 +28,8 @@ class Money {
       return Money((this.value / other).round());
   }
 
+  Money operator -() => Money(-this.value);
+
   bool operator <(dynamic other) => (other is Money && this.value < other.value) || this.value / 100 < other;
   bool operator >(dynamic other) => (other is Money && this.value > other.value) || this.value / 100 > other;
   bool operator <=(dynamic other) => (other is Money && this.value <= other.value) || this.value / 100 <= other;
@@ -39,7 +41,7 @@ class Money {
 
   double toDouble() => this.value / 100;
 
-  static final currencyFormat = NumberFormat("Rp #,##0.00", "en_US");
+  static final currencyFormat = NumberFormat("Rp#,##0.00", "id_ID");
   String toString() {
     return currencyFormat.format(this.value / 100);
   }

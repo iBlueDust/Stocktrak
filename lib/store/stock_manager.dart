@@ -44,8 +44,7 @@ class StockManager extends ChangeNotifier {
     try {
       await fetchDailyStocks().timeout(TIMEOUT);
     } catch (error) {
-      if (kDebugMode)
-        print(error);
+      if (kDebugMode) print(error);
     }
     notifyListeners();
 

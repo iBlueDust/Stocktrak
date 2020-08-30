@@ -4,9 +4,9 @@ import 'package:flutter_masked_text/flutter_masked_text.dart' show MoneyMaskedTe
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:stocktrak/store/stock_manager.dart';
+import 'package:stocktrak/store/transaction_manager.dart';
 
 import 'package:stocktrak/utils/money.dart';
-import 'package:stocktrak/utils/stock_scraper.dart';
 import 'package:stocktrak/utils/transaction.dart';
 
 class NewTransactionPage extends StatelessWidget {
@@ -103,8 +103,8 @@ class _TransactionFormState extends State<TransactionForm> {
                     ),
                     onChanged: (stock) {
                       setState(() {
-                        _stock = stock;
-                        final price = manager.stockPrice(stock);
+                        _stock = stock.toUpperCase();
+                        final price = manager.stockPrice(_stock);
 
                         if (price == null)
                           _isStockValid = false;
@@ -217,9 +217,12 @@ class _TransactionFormState extends State<TransactionForm> {
               ),
             ),
             SizedBox(width: 16),
-            FlatButton(
-              color: theme.accentColor,
-              onPressed: () => _save(context),
+            Consumer<TransactionManager>(
+              builder: (context, manager, child) => FlatButton(
+                color: theme.accentColor,
+                onPressed: () => _save(context, manager),
+                child: child,
+              ),
               child: Text('Save'),
             ),
           ])
@@ -276,13 +279,25 @@ class _TransactionFormState extends State<TransactionForm> {
     }
   }
 
-  void _save(BuildContext context) {
+  Future<void> _save(BuildContext context, TransactionManager manager) async {
     if (this._formKey.currentState.validate()) {
+      await manager.addTransaction(
+        Transaction(
+          date: _date,
+          lots: _lots,
+          pricePerStock: _pricePerStock,
+          stock: _stock,
+          type: TransactionType.Buy,
+        ),
+      );
+
       Scaffold.of(context).showSnackBar(
         SnackBar(
           content: Text("Saved!"),
         ),
       );
+
+      Navigator.pop(context);
     } else
       Scaffold.of(context).showSnackBar(
         SnackBar(
