@@ -61,7 +61,13 @@ class TransactionManager extends ChangeNotifier {
             Sembast.SortOrder('stock'),
           ],
         ));
-    transactions = records.map((t) => Transaction.fromJson(t.value)).toList();
+    transactions = [];
+    records.forEach((t) {
+      if (t.value == null)
+        store.record(t).delete(db);
+      else
+        transactions.add(Transaction.fromJson(t.value)..id = t.key);
+    });
   }
 
   Future<void> _cacheOwnedStocks() async {
@@ -99,7 +105,9 @@ class TransactionManager extends ChangeNotifier {
 
   Future<void> addTransaction(Transaction transaction) async {
     await _init;
-    await store.add(db, transaction.toJson());
+    final key = await store.add(db, null);
+    transaction.id = key;
+    await store.record(key).put(db, transaction.toJson());
 
     final index = transactions.indexWhere(
       (element) =>
@@ -113,6 +121,12 @@ class TransactionManager extends ChangeNotifier {
       transactions.insert(index, transaction);
 
     _accumulateOwnedStock(transaction);
+    notifyListeners();
+  }
+
+  Future<void> removeTransactionAt(int index) async {
+    await store.record(transactions[index].id).delete(db);
+    transactions.removeAt(index);
     notifyListeners();
   }
 

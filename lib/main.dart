@@ -15,9 +15,9 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => TransactionManager()..initialize(),
+      create: (_) => StockManager()..initialize(),
       child: ChangeNotifierProvider(
-        create: (_) => StockManager()..initialize(),
+        create: (_) => TransactionManager()..initialize(),
         child: MaterialApp(
           title: 'Stocktrak',
           theme: ThemeData(
