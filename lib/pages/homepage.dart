@@ -158,42 +158,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
         },
         child: child,
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            GestureDetector(
-              onLongPress: () => _calculateOwnedStocks(context),
-              child: Text("Dashboard", style: theme.textTheme.headline3),
+      child: CustomScrollView(
+        scrollDirection: Axis.vertical,
+        slivers: [
+          SliverList(
+            delegate: SliverChildListDelegate(
+              [
+                Padding(
+                  padding: const EdgeInsets.all(32.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      GestureDetector(
+                        onLongPress: () => _calculateOwnedStocks(context),
+                        child: Text("Dashboard", style: theme.textTheme.headline3),
+                      ),
+                      SizedBox(height: 32.0),
+                      Align(
+                        alignment: Alignment.topRight,
+                        child: ToggleButtons(
+                          children: [
+                            Text('Rp'),
+                            Text('%'),
+                          ],
+                          constraints: BoxConstraints(minHeight: 32, minWidth: 48),
+                          selectedColor: theme.floatingActionButtonTheme.foregroundColor,
+                          fillColor: theme.floatingActionButtonTheme.backgroundColor,
+                          isSelected: _type == _DashboardViewType.Delta ? [true, false] : [false, true],
+                          borderRadius: BorderRadius.circular(4),
+                          borderColor: theme.buttonColor,
+                          selectedBorderColor: theme.accentColor,
+                          onPressed: (index) {
+                            setState(() {
+                              _type = index == 0 ? _DashboardViewType.Delta : _DashboardViewType.PercentDelta;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            SizedBox(height: 32.0),
-            Align(
-              alignment: Alignment.topRight,
-              child: ToggleButtons(
-                children: [
-                  Text('Rp'),
-                  Text('%'),
-                ],
-                constraints: BoxConstraints(minHeight: 32, minWidth: 48),
-                selectedColor: theme.floatingActionButtonTheme.foregroundColor,
-                fillColor: theme.floatingActionButtonTheme.backgroundColor,
-                isSelected: _type == _DashboardViewType.Delta ? [true, false] : [false, true],
-                borderRadius: BorderRadius.circular(4),
-                borderColor: theme.buttonColor,
-                selectedBorderColor: theme.accentColor,
-                onPressed: (index) {
-                  setState(() {
-                    _type = index == 0 ? _DashboardViewType.Delta : _DashboardViewType.PercentDelta;
-                  });
-                },
-              ),
-            ),
-            SizedBox(height: 16),
-            StockList(viewType: _type),
-          ],
-        ),
+          ),
+          StockList(viewType: _type),
+        ],
       ),
     );
   }
@@ -227,17 +237,25 @@ class _TransactionScreenState extends State<TransactionScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Padding(
-      padding: const EdgeInsets.all(32.0),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text("Transactions", style: theme.textTheme.headline3),
-          SizedBox(height: 32),
-          Expanded(child: TransactionList(selectMode: _isSelecting)),
-        ],
-      ),
+    return CustomScrollView(
+      slivers: [
+        SliverList(
+          delegate: SliverChildListDelegate([
+            Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text("Transactions", style: theme.textTheme.headline3),
+                  SizedBox(height: 32),
+                ],
+              ),
+            ),
+          ]),
+        ),
+        TransactionList(selectMode: _isSelecting),
+      ],
     );
   }
 }
@@ -254,15 +272,15 @@ class StockList extends StatelessWidget {
           final stocks = manager.ownedStocks?.entries?.toList(growable: false) ?? [];
           stocks.sort((a, b) => a.key.compareTo(b.key));
 
-          return ListView(
-            shrinkWrap: true,
-            children: stocks
-                .map((entry) => StockListItem(
-                      stockCode: entry.key,
-                      ownedStock: entry.value,
-                      viewType: viewType,
-                    ))
-                .toList(growable: false),
+          return SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) => StockListItem(
+                stockCode: stocks[index].key,
+                ownedStock: stocks[index].value,
+                viewType: viewType,
+              ),
+              childCount: stocks.length,
+            ),
           );
         } else {
           return Expanded(
@@ -296,7 +314,7 @@ class StockListItem extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16.0),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: <Widget>[
@@ -418,22 +436,23 @@ class TransactionList extends StatelessWidget {
             ),
           );
         else if (manager.transactionCount > 0)
-          return ListView.builder(
-            shrinkWrap: true,
-            itemCount: manager.transactionCount,
-            itemBuilder: (context, index) {
-              final transaction = manager.transactionAt(index);
-              return TransactionListItem(
-                transaction,
-                key: Key(transaction.id.toRadixString(16)),
-                onTap: () => _editTransaction(transaction, context),
-                onLongPress: () => _showOptionsDialog(index, manager, context),
-              );
-            },
+          return SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final transaction = manager.transactionAt(index);
+                return TransactionListItem(
+                  transaction,
+                  key: Key(transaction.id.toRadixString(16)),
+                  onTap: () => _editTransaction(transaction, context),
+                  onLongPress: () => _showOptionsDialog(index, manager, context),
+                );
+              },
+              childCount: manager.transactionCount,
+            ),
           );
         else
           return Center(
-            child: Text('Loading'),
+            child: CircularProgressIndicator(),
           );
       },
     );
@@ -512,7 +531,7 @@ class TransactionListItem extends StatelessWidget {
       onTap: onTap,
       onLongPress: onLongPress,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.end,
