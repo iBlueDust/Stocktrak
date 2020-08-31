@@ -70,19 +70,20 @@ class EditTransactionPage extends StatelessWidget {
 
     return showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (_) => AlertDialog(
         title: Text('Discard changes?'),
         content: Text('Your changes will not be saved!'),
         actions: <Widget>[
           FlatButton(
             onPressed: () {
               Navigator.pop(context);
+              Navigator.pop(context);
             },
             child: Text("OK"),
           ),
           FlatButton(
             color: theme.accentColor,
-            onPressed: () => Navigator.pop(dialogContext),
+            onPressed: () => Navigator.pop(context),
             child: Text('Nevermind'),
           ),
           SizedBox(width: 0),
