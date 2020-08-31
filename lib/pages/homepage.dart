@@ -8,7 +8,6 @@ import 'package:enum_to_string/enum_to_string.dart';
 
 import 'package:stocktrak/store/stock_manager.dart' show StockManager, TIMEOUT;
 import 'package:stocktrak/store/transaction_manager.dart';
-import 'package:stocktrak/utils/money.dart';
 import 'package:stocktrak/utils/owned_stock.dart';
 import 'package:stocktrak/utils/transaction.dart';
 
@@ -165,7 +164,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text("Dashboard", style: theme.textTheme.headline3),
+            GestureDetector(
+              onLongPress: () => _calculateOwnedStocks(context),
+              child: Text("Dashboard", style: theme.textTheme.headline3),
+            ),
             SizedBox(height: 32.0),
             Align(
               alignment: Alignment.topRight,
@@ -194,6 +196,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _calculateOwnedStocks(BuildContext context) async {
+    final scaffold = Scaffold.of(context);
+
+    scaffold.showSnackBar(SnackBar(
+      content: Text('Resetting dashboard'),
+    ));
+    _controller.requestRefresh();
+
+    final manager = Provider.of<TransactionManager>(context, listen: false);
+    await manager.calculateOwnedStocks();
+
+    scaffold.showSnackBar(SnackBar(
+      content: Text('Reset complete'),
+    ));
   }
 }
 
@@ -231,17 +249,32 @@ class StockList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<TransactionManager>(
-      builder: (context, manager, _) => ListView(
-        shrinkWrap: true,
-        children: manager.ownedStocks?.entries
-                ?.map((entry) => StockListItem(
+      builder: (context, manager, _) {
+        if (manager.ownedStocks?.length != 0) {
+          final stocks = manager.ownedStocks?.entries?.toList(growable: false) ?? [];
+          stocks.sort((a, b) => a.key.compareTo(b.key));
+
+          return ListView(
+            shrinkWrap: true,
+            children: stocks
+                .map((entry) => StockListItem(
                       stockCode: entry.key,
                       ownedStock: entry.value,
                       viewType: viewType,
                     ))
-                ?.toList() ??
-            [],
-      ),
+                .toList(growable: false),
+          );
+        } else {
+          return Expanded(
+            child: Center(
+              child: Text(
+                'Dashboard will be available once there are transactions.\nTap the "+" button to add',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }
+      },
     );
   }
 }
@@ -306,64 +339,65 @@ class StockListItem extends StatelessWidget {
                       }
                     } else {
                       return Text(
-                        'Error',
+                        'ERROR',
                         style: theme.textTheme.overline.copyWith(color: theme.errorColor),
                       );
                     }
                   }
                 },
               ),
+              Text('CAP: ' + ownedStock.nettCost.toString(), style: theme.textTheme.overline),
             ],
           ),
-          Consumer<StockManager>(
-            builder: (context, stockManager, _) {
-              final theme = Theme.of(context);
-              final stockPrice = stockManager.stockPrice(stockCode);
-
-              if (stockPrice == null)
-                return Shimmer.fromColors(
-                  baseColor: Colors.grey[800],
-                  highlightColor: Colors.grey[700],
-                  child: Container(
-                    width: 96,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(4),
-                      color: Colors.white,
-                    ),
-                  ),
-                );
-
-              final currentPrice = stockPrice * ownedStock.lots * Transaction.stocksPerLot;
-              Color color;
-              String sign = '';
-
-              if (currentPrice > ownedStock.nettCost) {
-                color = theme.primaryColor;
-                sign = '+';
-              } else if (currentPrice == ownedStock.nettCost)
-                color = Colors.yellowAccent;
-              else
-                color = theme.errorColor;
-
-              switch (viewType) {
-                case _DashboardViewType.PercentDelta:
-                  final percentDelta = (currentPrice / ownedStock.nettCost).toDouble() * 100 - 100;
-                  return Text(
-                    '$sign${percentDelta.toStringAsFixed(2)}%',
-                    style: theme.textTheme.headline6.copyWith(color: color),
-                  );
-                default:
-                  return Text(
-                    sign + (currentPrice - ownedStock.nettCost).toString(),
-                    style: theme.textTheme.headline6.copyWith(color: color),
-                  );
-              }
-            },
-          ),
+          Consumer<StockManager>(builder: (context, manager, _) => _buildStockDelta(context, manager)),
         ],
       ),
     );
+  }
+
+  Widget _buildStockDelta(BuildContext context, StockManager manager) {
+    final theme = Theme.of(context);
+    final stockPrice = manager.stockPrice(stockCode);
+
+    if (stockPrice == null)
+      return Shimmer.fromColors(
+        baseColor: Colors.grey[800],
+        highlightColor: Colors.grey[700],
+        child: Container(
+          width: 96,
+          height: 24,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(4),
+            color: Colors.white,
+          ),
+        ),
+      );
+
+    final currentPrice = stockPrice * ownedStock.lots * Transaction.stocksPerLot;
+    Color color;
+    String sign = '';
+
+    if (currentPrice > ownedStock.nettCost) {
+      color = theme.primaryColor;
+      sign = '+';
+    } else if (currentPrice == ownedStock.nettCost)
+      color = Colors.yellowAccent;
+    else
+      color = theme.errorColor;
+
+    switch (viewType) {
+      case _DashboardViewType.PercentDelta:
+        final percentDelta = (currentPrice.toDouble() / ownedStock.nettCost.toDouble()) * 100 - 100;
+        return Text(
+          '$sign${percentDelta.toStringAsFixed(2)}%',
+          style: theme.textTheme.headline6.copyWith(color: color),
+        );
+      default:
+        return Text(
+          sign + (currentPrice - ownedStock.nettCost).toString(),
+          style: theme.textTheme.headline6.copyWith(color: color),
+        );
+    }
   }
 }
 
@@ -392,7 +426,7 @@ class TransactionList extends StatelessWidget {
               return TransactionListItem(
                 transaction,
                 key: Key(transaction.id.toRadixString(16)),
-                onTap: () => _editTransactionAt(index, context),
+                onTap: () => _editTransaction(transaction, context),
                 onLongPress: () => _showOptionsDialog(index, manager, context),
               );
             },
@@ -414,7 +448,8 @@ class TransactionList extends StatelessWidget {
             children: <Widget>[
               SimpleDialogOption(
                 onPressed: () {
-                  _editTransactionAt(index, context);
+                  final manager = Provider.of<TransactionManager>(context, listen: false);
+                  _editTransaction(manager.transactionAt(index), context);
                   Navigator.pop(dialogContext);
                 },
                 child: const Text('Edit'),
@@ -431,8 +466,8 @@ class TransactionList extends StatelessWidget {
         });
   }
 
-  Future<void> _editTransactionAt(int index, BuildContext context) {
-    return Navigator.pushNamed(context, 'edit-transaction', arguments: index);
+  Future<void> _editTransaction(Transaction transaction, BuildContext context) {
+    return Navigator.pushNamed(context, '/edit-transaction', arguments: transaction);
   }
 
   Future<void> _deleteTransactionAt(int index, TransactionManager manager, BuildContext context) async {

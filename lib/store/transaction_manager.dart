@@ -33,25 +33,75 @@ class TransactionManager extends ChangeNotifier {
       final filePath = path.join(appDir.path, DB_FILENAME);
       db = await databaseFactoryIo.openDatabase(filePath, version: DB_VERSION);
 
-      await _fetchTransactions();
-      print('Transactions retrieved');
-
       print('Sembast DB initialized');
 
-      notifyListeners();
+      await _fetchTransactions();
+      print('Transactions retrieved');
     } else if (kDebugMode) print("Storage permissions denied");
 
     try {
       await _decacheOwnedStocks();
-    } catch (_) {
+    } catch (error) {
       print("Owned Stocks not found in SharedPreferences");
-      await _calculateOwnedStocks();
+      if (kDebugMode) print(error);
+
+      await calculateOwnedStocks();
       await _cacheOwnedStocks();
     }
+    notifyListeners();
   }
 
   List<Transaction> transactions;
   Map<String, OwnedStock> ownedStocks;
+
+  Future<void> _cacheOwnedStocks() async {
+    return _pref.setString(
+        PK_OWNED_STOCKS, json.encode(ownedStocks.map((key, value) => MapEntry(key, value.toJson()))));
+  }
+
+  Future<void> _decacheOwnedStocks() async {
+    Map<String, dynamic> map = json.decode(_pref.getString(PK_OWNED_STOCKS));
+    ownedStocks = map.map((stockCode, value) => MapEntry(stockCode, OwnedStock.fromJson(value)));
+  }
+
+  void _accumulateOwnedStock(Transaction transaction) {
+    if (ownedStocks.containsKey(transaction.stock)) {
+      final ownedStock = ownedStocks[transaction.stock];
+      ownedStock.lots += transaction.type == TransactionType.Buy ? transaction.lots : -transaction.lots;
+      ownedStock.nettCost += transaction.type == TransactionType.Buy ? transaction.totalPrice : -transaction.totalPrice;
+    } else {
+      ownedStocks[transaction.stock] = OwnedStock(
+        lots: transaction.lots,
+        nettCost: transaction.type == TransactionType.Buy ? transaction.totalPrice : -transaction.totalPrice,
+      );
+    }
+
+    _cacheOwnedStocks().catchError((e) {
+      if (kDebugMode == true) print(e);
+    });
+  }
+
+  void _decumulateOwnedStock(Transaction transaction) {
+    if (ownedStocks.containsKey(transaction.stock)) {
+      final ownedStock = ownedStocks[transaction.stock];
+      ownedStock.lots -= transaction.type == TransactionType.Buy ? transaction.lots : -transaction.lots;
+      ownedStock.nettCost -= transaction.type == TransactionType.Buy ? transaction.totalPrice : -transaction.totalPrice;
+
+      if (ownedStock.lots <= 0) ownedStocks.remove(transaction.stock);
+    }
+
+    _cacheOwnedStocks().catchError((e) {
+      if (kDebugMode == true) print(e);
+    });
+  }
+
+  Future<void> calculateOwnedStocks() async {
+    ownedStocks = Map();
+
+    for (final t in transactions) {
+      _accumulateOwnedStock(t);
+    }
+  }
 
   Future<void> _fetchTransactions() async {
     final records = await store.find(db,
@@ -70,45 +120,7 @@ class TransactionManager extends ChangeNotifier {
     });
   }
 
-  Future<void> _cacheOwnedStocks() async {
-    return _pref.setString(
-        PK_OWNED_STOCKS, json.encode(ownedStocks.map((key, value) => MapEntry(key, value.toJson()))));
-  }
-
-  Future<void> _decacheOwnedStocks() async {
-    Map<String, Map<String, dynamic>> map = json.decode(_pref.getString(PK_OWNED_STOCKS));
-    ownedStocks = map.map((stockCode, value) => MapEntry(stockCode, OwnedStock.fromJson(value)));
-    notifyListeners();
-  }
-
-  Future<void> _calculateOwnedStocks() async {
-    ownedStocks = Map();
-
-    for (final t in transactions) {
-      _accumulateOwnedStock(t);
-    }
-    notifyListeners();
-  }
-
-  void _accumulateOwnedStock(Transaction transaction) {
-    if (ownedStocks.containsKey(transaction.stock)) {
-      final ownedStock = ownedStocks[transaction.stock];
-      ownedStock.lots += transaction.type == TransactionType.Buy ? transaction.lots : -transaction.lots;
-      ownedStock.nettCost += transaction.type == TransactionType.Buy ? transaction.totalPrice : -transaction.totalPrice;
-    } else {
-      ownedStocks[transaction.stock] = OwnedStock(
-        lots: transaction.lots,
-        nettCost: transaction.type == TransactionType.Buy ? transaction.totalPrice : -transaction.totalPrice,
-      );
-    }
-  }
-
-  Future<void> addTransaction(Transaction transaction) async {
-    await _init;
-    final key = await store.add(db, null);
-    transaction.id = key;
-    await store.record(key).put(db, transaction.toJson());
-
+  void _insertIntoTransactions(Transaction transaction) {
     final index = transactions.indexWhere(
       (element) =>
           element.date.isBefore(transaction.date) ||
@@ -119,14 +131,40 @@ class TransactionManager extends ChangeNotifier {
       transactions.add(transaction);
     else
       transactions.insert(index, transaction);
+  }
+
+  Future<void> addTransaction(Transaction transaction) async {
+    await _init;
+    final key = await store.add(db, null);
+    transaction.id = key;
+    await store.record(key).put(db, transaction.toJson());
+
+    _insertIntoTransactions(transaction);
 
     _accumulateOwnedStock(transaction);
+    notifyListeners();
+  }
+
+  Future<void> updateTransaction(Transaction transaction, [int key]) async {
+    await store.record(key ?? transaction.id).put(db, transaction.toJson());
+    final index = transactions.indexWhere((t) => transaction.id != t.id);
+
+    if (index == -1) {
+      _insertIntoTransactions(transaction);
+    } else {
+      // Old stock
+      _decumulateOwnedStock(transactions[index]);
+      transactions[index] = transaction;
+    }
+    _accumulateOwnedStock(transaction);
+
     notifyListeners();
   }
 
   Future<void> removeTransactionAt(int index) async {
     await store.record(transactions[index].id).delete(db);
     transactions.removeAt(index);
+    _decumulateOwnedStock(transactions[index]);
     notifyListeners();
   }
 

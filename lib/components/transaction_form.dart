@@ -4,46 +4,30 @@ import 'package:flutter_masked_text/flutter_masked_text.dart' show MoneyMaskedTe
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:stocktrak/store/stock_manager.dart';
-import 'package:stocktrak/store/transaction_manager.dart';
 
 import 'package:stocktrak/utils/money.dart';
 import 'package:stocktrak/utils/transaction.dart';
 
-class NewTransactionPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Scaffold(
-      backgroundColor: theme.backgroundColor,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          scrollDirection: Axis.vertical,
-          child: Padding(
-            padding: const EdgeInsets.all(32.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text("New Transaction", style: theme.textTheme.headline3),
-                SizedBox(height: 64.0),
-                TransactionForm(),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class TransactionForm extends StatefulWidget {
+  final Function(Transaction, bool Function()) onSave;
+  final Function(bool) onCancel;
+  final Transaction initValue;
+
+  TransactionForm({
+    Key key,
+    this.initValue,
+    this.onSave,
+    this.onCancel,
+  }) : super(key: key);
+
   @override
-  State<StatefulWidget> createState() => _TransactionFormState();
+  State<StatefulWidget> createState() => TransactionFormState();
 }
 
-class _TransactionFormState extends State<TransactionForm> {
+class TransactionFormState extends State<TransactionForm> {
   final _formKey = GlobalKey<FormState>();
+
+  int _id;
 
   TransactionType _type = TransactionType.Buy;
 
@@ -55,21 +39,49 @@ class _TransactionFormState extends State<TransactionForm> {
 
   MoneyMaskedTextController _pricePerStockController;
 
-  DateTime _date = DateTime.now();
+  DateTime _date;
   TextEditingController _dateFieldController;
 
   String _notes = '';
+
+  Transaction get transaction => Transaction(
+        id: _id,
+        date: _date,
+        lots: _lots,
+        pricePerStock: _pricePerStock,
+        stock: _stock,
+        type: _type,
+        notes: _notes,
+      );
+
+  bool _edited = false;
 
   @override
   void initState() {
     super.initState();
 
+    var today = DateTime.now();
+    today = DateTime(today.year, today.month, today.day);
+
+    // Copy init value from widget
+    _id = widget.initValue?.id ?? _id;
+    _type = widget.initValue?.type ?? _type;
+    _pricePerStock = widget.initValue?.pricePerStock ?? _pricePerStock;
+    _lots = widget.initValue?.lots ?? _lots;
+    _stock = widget.initValue?.stock ?? _stock;
+    _date = widget.initValue?.date ?? today;
+    _notes = widget.initValue?.notes ?? _notes;
+
+    // Controlers
     _pricePerStockController = MoneyMaskedTextController(
-      leftSymbol: 'Rp ',
+      leftSymbol: 'Rp',
       precision: 0,
       decimalSeparator: '',
-      thousandSeparator: ',',
-    )..addListener(() {
+      thousandSeparator: '.',
+    )
+      // Make sure to update before attaching a listener
+      ..updateValue(_pricePerStock.toDouble())
+      ..addListener(() {
         setState(() => _pricePerStock = Money.fromDouble(_pricePerStockController.numberValue));
       });
     _dateFieldController = TextEditingController();
@@ -126,11 +138,14 @@ class _TransactionFormState extends State<TransactionForm> {
                   builder: (context, manager, _) => TextFormField(
                     textCapitalization: TextCapitalization.characters,
                     maxLength: 4,
+                    initialValue: _stock,
                     decoration: InputDecoration(
                       filled: true,
                       labelText: 'Stock code',
                     ),
                     onChanged: (stock) {
+                      _edited = true;
+
                       setState(() {
                         _stock = stock.toUpperCase();
                         final price = manager.stockPrice(_stock);
@@ -173,6 +188,9 @@ class _TransactionFormState extends State<TransactionForm> {
                       filled: true,
                       labelText: 'Price per stock',
                     ),
+                    onChanged: (_) {
+                      _edited = true;
+                    },
                     controller: _pricePerStockController,
                     keyboardType: TextInputType.number,
                     validator: (_) {
@@ -186,7 +204,7 @@ class _TransactionFormState extends State<TransactionForm> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minWidth: 64),
                   child: TextFormField(
-                    initialValue: '1',
+                    initialValue: _lots.toString(),
                     decoration: InputDecoration(
                       filled: true,
                       labelText: 'Lots',
@@ -195,7 +213,10 @@ class _TransactionFormState extends State<TransactionForm> {
                       WhitelistingTextInputFormatter.digitsOnly,
                     ],
                     keyboardType: TextInputType.number,
-                    onChanged: (text) => setState(() => _lots = text.isEmpty ? 0 : int.parse(text)),
+                    onChanged: (text) {
+                      _edited = true;
+                      setState(() => _lots = text.isEmpty ? 0 : int.parse(text));
+                    },
                     validator: (_) => _lots < 0 ? 'Lots cannot be negative' : null,
                   ),
                 ),
@@ -210,9 +231,7 @@ class _TransactionFormState extends State<TransactionForm> {
             ),
             keyboardType: TextInputType.datetime,
             readOnly: true,
-            onTap: () {
-              _showDatePicker(context);
-            },
+            onTap: () => _showDatePicker(context),
             controller: _dateFieldController,
             validator: (_) => _date == null ? 'Date is required' : null,
           ),
@@ -222,10 +241,14 @@ class _TransactionFormState extends State<TransactionForm> {
               filled: true,
               labelText: 'Notes',
             ),
+            initialValue: _notes,
             keyboardType: TextInputType.multiline,
             maxLines: 10,
             minLines: 1,
-            onChanged: (text) => _notes = text,
+            onChanged: (text) {
+              _edited = true;
+              _notes = text;
+            },
           ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 64),
@@ -247,21 +270,16 @@ class _TransactionFormState extends State<TransactionForm> {
           ),
           Row(mainAxisAlignment: MainAxisAlignment.end, children: [
             OutlineButton(
-              onPressed: () {
-                _showCancelDialog(context);
-              },
+              onPressed: cancel,
               child: Text('Cancel'),
               borderSide: BorderSide(
                 color: theme.buttonColor,
               ),
             ),
             SizedBox(width: 16),
-            Consumer<TransactionManager>(
-              builder: (context, manager, child) => FlatButton(
-                color: theme.accentColor,
-                onPressed: () => _save(context, manager),
-                child: child,
-              ),
+            FlatButton(
+              color: theme.accentColor,
+              onPressed: this.save,
               child: Text('Save'),
             ),
           ])
@@ -270,31 +288,12 @@ class _TransactionFormState extends State<TransactionForm> {
     );
   }
 
-  Future<void> _showCancelDialog(BuildContext context) {
-    final theme = Theme.of(context);
+  void save() {
+    widget.onSave(transaction, this._formKey.currentState.validate);
+  }
 
-    return showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Discard changes?'),
-        content: Text('Your changes will not be saved!'),
-        actions: <Widget>[
-          FlatButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-            child: Text("OK"),
-          ),
-          FlatButton(
-            color: theme.accentColor,
-            onPressed: () => Navigator.pop(context),
-            child: Text('Nevermind'),
-          ),
-          SizedBox(width: 0),
-        ],
-      ),
-    );
+  void cancel() {
+    widget.onCancel(_edited);
   }
 
   void _updateDateField() {
@@ -309,40 +308,15 @@ class _TransactionFormState extends State<TransactionForm> {
       lastDate: DateTime(6000),
     );
 
+    if (date != _date) ;
+    _edited = true;
+
     if (date != null) {
       setState(() {
         this._date = date;
         _updateDateField();
       });
     }
-  }
-
-  Future<void> _save(BuildContext context, TransactionManager manager) async {
-    if (this._formKey.currentState.validate()) {
-      await manager.addTransaction(
-        Transaction(
-          date: _date,
-          lots: _lots,
-          pricePerStock: _pricePerStock,
-          stock: _stock,
-          type: _type,
-          notes: _notes,
-        ),
-      );
-
-      Scaffold.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Saved!"),
-        ),
-      );
-
-      Navigator.pop(context);
-    } else
-      Scaffold.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Error!"),
-        ),
-      );
   }
 }
 

@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:stocktrak/pages/homepage.dart';
-import 'package:stocktrak/pages/newtransactionpage.dart';
+import 'package:stocktrak/pages/new_transaction_page.dart';
+import 'package:stocktrak/pages/edit_transaction_page.dart';
 import 'package:stocktrak/store/stock_manager.dart';
 import 'package:stocktrak/store/transaction_manager.dart';
 
@@ -58,6 +59,7 @@ class MyApp extends StatelessWidget {
           routes: {
             '/': (context) => HomePage(),
             '/new-transaction': (context) => NewTransactionPage(),
+            '/edit-transaction': (context) => EditTransactionPage(),
           },
         ),
       ),

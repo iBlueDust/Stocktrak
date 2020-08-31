@@ -46,7 +46,7 @@ class Money {
 
   double toDouble() => this.value / 100;
 
-  static final currencyFormat = NumberFormat("Rp#,##0.00", "id_ID");
+  static final currencyFormat = NumberFormat("Rp#,##0", "id_ID");
   String toString() {
     return currencyFormat.format(this.value / 100);
   }
