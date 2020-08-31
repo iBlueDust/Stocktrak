@@ -29,6 +29,7 @@ class TransactionFormState extends State<TransactionForm> {
 
   int _id;
 
+// #region Transaction values
   TransactionType _type = TransactionType.Buy;
 
   Money _pricePerStock = Money(0);
@@ -53,6 +54,7 @@ class TransactionFormState extends State<TransactionForm> {
         type: _type,
         notes: _notes,
       );
+// #endregion
 
   bool _edited = false;
 
@@ -260,9 +262,14 @@ class TransactionFormState extends State<TransactionForm> {
                     'TOTAL',
                     style: theme.textTheme.overline,
                   ),
-                  Text(
-                    (_pricePerStock * _lots * Transaction.stocksPerLot).toString(),
-                    style: theme.textTheme.headline6,
+                  TweenAnimationBuilder<Money>(
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.easeInOutQuad,
+                    tween: Tween<Money>(begin: Money(0), end: _pricePerStock * _lots * Transaction.stocksPerLot),
+                    builder: (context, total, _) => Text(
+                      total.toString(),
+                      style: theme.textTheme.headline6,
+                    ),
                   ),
                 ],
               ),
@@ -362,7 +369,13 @@ class StockFetcher extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: <Widget>[
-                Text("${manager.stockPrice(stock).toString()}", style: theme.textTheme.headline6),
+                TweenAnimationBuilder<Money>(
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.easeOutQuad,
+                  tween: Tween<Money>(begin: Money(0), end: manager.stockPrice(stock)),
+                  builder: (context, stockPrice, _) =>
+                      Text("${stockPrice.toString()}", style: theme.textTheme.headline6),
+                ),
                 Text("PER STOCK", style: theme.textTheme.overline),
               ],
             );

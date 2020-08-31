@@ -7,18 +7,18 @@ class Money {
   Money.fromDouble(double value) : this((value * 100).round());
 
   Money operator +(Money other) {
-    return Money(this.value + other.value);
+    return Money((this.value + other.value).round());
   }
 
   Money operator -(Money other) {
-    return Money(this.value - other.value);
+    return Money((this.value - other.value).round());
   }
 
   Money operator *(dynamic other) {
     if (other is Money)
       return Money(((this.value * other.value) / 100).round()); // Divide by 100 to remove the extra two decimal places
     else
-      return Money(this.value * other);
+      return Money((this.value * other).round());
   }
 
   Money operator /(dynamic other) {

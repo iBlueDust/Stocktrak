@@ -403,19 +403,38 @@ class StockListItem extends StatelessWidget {
     else
       color = theme.errorColor;
 
+    Widget Function(BuildContext, double, Widget) _buildDeltaText;
     switch (viewType) {
       case _DashboardViewType.PercentDelta:
         final percentDelta = (currentPrice.toDouble() / ownedStock.nettCost.toDouble()) * 100 - 100;
-        return Text(
-          '$sign${percentDelta.toStringAsFixed(2)}%',
-          style: theme.textTheme.headline6.copyWith(color: color),
-        );
+
+        _buildDeltaText = (context, value, _) => Opacity(
+              opacity: value,
+              child: Text(
+                '$sign${(value * percentDelta).toStringAsFixed(2)}%',
+                style: theme.textTheme.headline6.copyWith(color: color),
+              ),
+            );
+        break;
       default:
-        return Text(
-          sign + (currentPrice - ownedStock.nettCost).toString(),
-          style: theme.textTheme.headline6.copyWith(color: color),
-        );
+        final delta = currentPrice - ownedStock.nettCost;
+
+        _buildDeltaText = (context, value, _) => Opacity(
+              opacity: value,
+              child: Text(
+                sign + (delta * value).toString(),
+                style: theme.textTheme.headline6.copyWith(color: color),
+              ),
+            );
     }
+
+    return TweenAnimationBuilder<double>(
+      key: Key(EnumToString.parse(viewType)),
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeOutQuad,
+      tween: Tween<double>(begin: 0, end: 1),
+      builder: _buildDeltaText,
+    );
   }
 }
 
@@ -552,13 +571,21 @@ class TransactionListItem extends StatelessWidget {
                   "${transaction.lots}L @ ${transaction.pricePerStock.toString()}",
                   style: theme.textTheme.overline,
                 ),
-                Text(
-                  transaction.totalPrice.toString(),
-                  style: transaction == null
-                      ? theme.textTheme.headline6
-                      : theme.textTheme.headline6.copyWith(
-                          color: transaction.type == TransactionType.Buy ? theme.primaryColor : theme.errorColor,
-                        ),
+                TweenAnimationBuilder<double>(
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.easeOutQuad,
+                  tween: Tween<double>(begin: 0, end: 1),
+                  builder: (context, value, _) => Opacity(
+                    opacity: value,
+                    child: Text(
+                      (transaction.totalPrice * value).toString(),
+                      style: transaction == null
+                          ? theme.textTheme.headline6
+                          : theme.textTheme.headline6.copyWith(
+                              color: transaction.type == TransactionType.Buy ? theme.primaryColor : theme.errorColor,
+                            ),
+                    ),
+                  ),
                 ),
                 Text(
                   EnumToString.parse(transaction.type).toUpperCase(),
