@@ -123,7 +123,7 @@ class TransactionFormState extends State<TransactionForm> {
             selectedColor: theme.floatingActionButtonTheme.foregroundColor,
             fillColor: theme.floatingActionButtonTheme.backgroundColor,
             isSelected: _type == TransactionType.Buy ? [true, false] : [false, true],
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(2),
             borderColor: theme.buttonColor,
             selectedBorderColor: theme.accentColor,
             onPressed: (index) {

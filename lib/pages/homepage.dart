@@ -185,8 +185,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           constraints: BoxConstraints(minHeight: 32, minWidth: 48),
                           selectedColor: theme.floatingActionButtonTheme.foregroundColor,
                           fillColor: theme.floatingActionButtonTheme.backgroundColor,
-                          isSelected: _type == _DashboardViewType.Delta ? [true, false] : [false, true],
-                          borderRadius: BorderRadius.circular(4),
+                          isSelected: _type == _DashboardViewType.Delta ? const [true, false] : const [false, true],
+                          borderRadius: BorderRadius.circular(2),
                           borderColor: theme.buttonColor,
                           selectedBorderColor: theme.accentColor,
                           onPressed: (index) {
@@ -283,13 +283,17 @@ class StockList extends StatelessWidget {
             ),
           );
         } else {
-          return Expanded(
-            child: Center(
-              child: Text(
-                'Dashboard will be available once there are transactions.\nTap the "+" button to add',
-                textAlign: TextAlign.center,
+          return SliverFillRemaining(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Center(
+                child: Text(
+                  'Dashboard will be available once there are transactions.\nTap the "+" button to add',
+                  textAlign: TextAlign.center,
+                ),
               ),
             ),
+            hasScrollBody: false,
           );
         }
       },
@@ -331,9 +335,9 @@ class StockListItem extends StatelessWidget {
                       highlightColor: Colors.grey[700],
                       child: Container(
                         width: 48,
-                        height: 16,
+                        height: 12,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(2),
                           color: Colors.white,
                         ),
                       ),
@@ -385,7 +389,7 @@ class StockListItem extends StatelessWidget {
           width: 96,
           height: 24,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(2),
             color: Colors.white,
           ),
         ),
@@ -448,11 +452,17 @@ class TransactionList extends StatelessWidget {
     return Consumer<TransactionManager>(
       builder: (context, manager, child) {
         if (manager.transactionCount == 0)
-          return Center(
-            child: Text(
-              'Nothing here\nAdd a Transaction with the "+" button',
-              textAlign: TextAlign.center,
+          return SliverFillRemaining(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Center(
+                child: Text(
+                  'Nothing here\nAdd a Transaction with the "+" button',
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ),
+            hasScrollBody: false,
           );
         else if (manager.transactionCount > 0)
           return SliverList(

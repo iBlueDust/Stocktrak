@@ -59,9 +59,15 @@ class EditTransactionPage extends StatelessWidget {
   }
 
   Future<void> _save(BuildContext context, Transaction transaction, bool Function() validate) async {
+    final scaffold = Scaffold.of(context);
+
     if (validate()) {
       final manager = Provider.of<TransactionManager>(context, listen: false);
       await manager.updateTransaction(transaction);
+
+      scaffold.showSnackBar(SnackBar(content: Text('Saved!')));
+    } else {
+      scaffold.showSnackBar(SnackBar(content: Text('Error!')));
     }
   }
 
